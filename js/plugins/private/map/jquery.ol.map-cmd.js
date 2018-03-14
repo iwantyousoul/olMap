@@ -37,7 +37,7 @@ define(function(require, exports, module){
 			initNormalIconStyle : function(iconURL){
 				$.olMap.normalIconStyle = new ol.style.Style({
 		            image: new ol.style.Icon({
-		                anchor: [0.5, 0.5],
+		                anchor: [0.5, 1],
 		                anchorXUnits: 'fraction',
 		                anchorYUnits: 'fraction',
 		                src: iconURL
@@ -53,7 +53,7 @@ define(function(require, exports, module){
 			initSelectedIconStyle : function(selectedIconURL){
 				$.olMap.selectedIconStyle = new ol.style.Style({
 		            image: new ol.style.Icon({
-		                anchor: [0.5, 0.5],
+		                anchor: [0.5, 1],
 		                anchorXUnits: 'fraction',
 		                anchorYUnits: 'fraction',
 		                src: selectedIconURL
@@ -291,6 +291,103 @@ define(function(require, exports, module){
 			},
 
 			/**
+			 * 加载点位
+			 * @param options Object: 1)dataUrl: 远程地址，2)pointsSize: 限制显示的点位数量,
+			 * 						  3)sortName: 按sortName进行排序, 2) sortOrder: 升序或降序排序默认asc,
+			 *						  4)method: 提交请求方式 默认GET，5) localData: 本地数据, 6)cluster是否聚合
+			 *						  7)clusterDistance 聚合像素
+			 */
+			load: function(options){
+				var $map = this.eq(0);
+				var pointsData = [], ajaxData = {},
+					pointsUrl = options.pointsUrl; pointsSize = options.pointsSize, sortName = options.sortName || '';
+
+				if(pointsSize && pointsSize > 0){
+					ajaxData['pointsSize'] = pointsSize;
+				}
+
+				if(sortName){
+					ajaxData['sortName'] = sortName;
+					ajaxData['sortOrder'] = options.sortOrder || 'asc';
+				}
+
+				//获取远程点位数据
+				if(!Utils.isEmpty(pointsUrl) && Utils.isString(pointsUrl)){
+					$.ajax({
+						url: options.pointsUrl,
+						method : options.method || 'GET',
+						data: ajaxData,
+						dataType: 'JSON',
+						async : false,
+						success: function(data, textStatus, jqXhr){
+							if(textStatus == 'success'){
+								pointsData = data.datas;
+							}
+						},
+						error: function (jqXhr) {
+							layer.msg('加载远程点位数据失败!', {icon: 5});
+						}
+					});
+					//本地点位数据
+				}else if(!Utils.isEmpty(data) && Utils.isArray(data)){
+					pointsData = options.localData;
+				}
+
+				var len = pointsData.length;
+
+				if(len > 0){
+					//获取点位features
+					var pointsFeatures = $.olMap.getPointsFeatures(pointsData), clusterDistance = options.clusterDistance;
+					var featureLayer = $.olMap.getFeatureLayer(), source = $.olMap.featureSource;
+					source.addFeatures(pointsFeatures);
+					$map.attr('data-cluster', false);
+
+					//是否聚合
+					if(options.cluster){
+						var clusterDistance = clusterDistance ? clusterDistance : 40; //群集之间的像素距离
+						$map.attr('data-cluster', true);
+						$.olMap.clusterSource = new ol.source.Cluster({
+							projection: ol.proj.get("EPSG:4326"),
+							distance: clusterDistance,
+							source: source
+						});
+						featureLayer.setSource($.olMap.clusterSource);
+						featureLayer.setStyle($.olMap.getLayerVectorStyle);
+					}
+				}
+			},
+
+			/**
+			 * 鼠标右击事件
+			 */
+			onRightClick: function(){
+				var $this = this.eq(0);
+				$this.off('contextmenu').on('contextmenu', function(){
+					return false;
+				}).off('mousedown').on('mousedown', function(e) {
+					if (2 == e.button || 3 == e.which) {
+						e.preventDefault();
+						$this.triggerHandler('map.rightClick', [ol.proj.transform($.olMap.map.getEventCoordinate(event), 'EPSG:3857', 'EPSG:4326')]);
+					}
+				});
+			},
+
+			/**
+			 *	鼠标左击事件
+			 */
+			onLeftClick: function(){
+				var $this = this.eq(0);
+				var map = $.olMap.map;
+				$this.on('click', function(e){
+					e.preventDefault();
+					var features = [];
+					var coordinate = [ol.proj.transform($.olMap.map.getEventCoordinate(event), 'EPSG:3857', 'EPSG:4326')];
+					var feature = map.forEachFeatureAtPixel(map.getEventPixel(event), function(feature) { return feature;});
+					$this.triggerHandler('map.click', [{coordinate:coordinate, features: feature}]);
+				});
+			},
+
+			/**
 			 * 获取点位features
 			 *
 			 * @argument datas Array 点位数据
@@ -390,13 +487,14 @@ define(function(require, exports, module){
 			 * olMap
 			 *	
 			 * @argument options{} 1)centerPoint Array：地图中心点位[]， 2)tileUrl String: 瓦片地址URL，
-			 *           3)pointsUrl String: 请求远程点位数据的URL，4)data Array: 本地数据点位数据，
-			 *           5)minZoom Number：地图显示的最小层级(默认1)，6)maxZoom：地图显示的最大层级(默认17)，
-			 *			 7)defaultZoom: 地图初始化显示的层级(默认14)，8)pointsSize Number：初始化显示的点位数量，
-			 *           9)bgColor String: 地图背景色， 10)showZoom boolean: 是否显示缩放按钮，
-			 *           11)iconURL String: 正常点位icon路径，12)selectedIconURL String：选中或当前点位icon路径，
-			 *           13)cluster boolean 是否聚合显示(默认false)，14)clusterDistance Number:群集之间的像素距离(默认40)，
-			 *           15) 
+			 *           3)pointsUrl String: 请求远程点位数据的URL，4)method String: 提交方式POST or GET, 默认GET，
+			 *           5)data Array: 本地数据点位数据，6)minZoom Number：地图显示的最小层级(默认1)，
+			 *           7)maxZoom：地图显示的最大层级(默认17)，8)defaultZoom: 地图初始化显示的层级(默认14)，
+			 *           9)pointsSize Number：初始化显示的点位数量，10)bgColor String: 地图背景色， 11)showZoom boolean: 是否显示缩放按钮，
+			 *           12)iconURL String: 正常点位icon路径，13)selectedIconURL String：选中或当前点位icon路径，
+			 *           14)cluster boolean 是否聚合显示(默认false)，15)clusterDistance Number:群集之间的像素距离(默认40)，
+			 *           16)sortName String: 初始排序字段， 17)sortOrder String: 初始排序顺序，'asc'或'desc'，默认'asc'，
+			 *
 			 *         
 			 */
 			olMap : function(options){
@@ -443,7 +541,6 @@ define(function(require, exports, module){
 				var showZoom = options.showZoom;
 				showZoom = (showZoom != null && showZoom != undefined) ? showZoom : true;
 
-
 				//地图点位样式
 				var iconURL = options.iconURL, selectedIconURL = options.selectedIconURL;
 				iconURL = iconURL ? iconURL : 'js/plugins/private/map/resource/images/marker.png';
@@ -454,64 +551,22 @@ define(function(require, exports, module){
 				//创建地图
 				$.olMap.createOlMap.call($this, showZoom);
 
-				var pointsUrl = options.pointsUrl, pointsSize = options.pointsSize;
-				var data = options.data, pointsData = [], ajaxData = {};
+				//加载点位
+				$.olMap.load.call($this, {
+					pointsUrl : options.pointsUrl,
+					pointsSize: options.pointsSize,
+					sortName: options.sortName,
+					sortOrder: options.sortOrder,
+					method: options.method,
+					localData: options.data,
+					cluster: options.cluster,
+					clusterDistance: options.clusterDistance
+				});
 
-				if(pointsSize && pointsSize > 0){
-					ajaxData = {pointsSize : pointsSize};
-				}
+				//绑定右击事件
+				$.olMap.onRightClick.call($this);
+				$.olMap.onLeftClick.call($this);
 
-				//获取远程点位数据
-				if(!Utils.isEmpty(pointsUrl) && Utils.isString(pointsUrl)){
-					$.ajax({
-						url: pointsUrl,
-						method : 'POST',
-						data: ajaxData,
-						dataType: 'JSON',
-						async : false,
-						success: function(data, textStatus, jqXhr){
-							if(textStatus == 'success'){
-								var showLength = ajaxData.pointsSize;
-								if(showLength && showLength > 0){
-									pointsData = data.datas.slice(0, showLength);
-								}else{
-									pointsData = data.datas;
-								}
-								
-							}
-						},
-						error: function (jqXhr) {
-							layer.msg('加载远程点位数据失败!', {icon: 5});
-						}
-					});
-				//本地点位数据
-				}else if(!Utils.isEmpty(data) && Utils.isArray(data)){
-					pointsData = data;
-				}
-
-				var len = pointsData.length;
-
-				if(len > 0){
-					//获取点位features
-					var pointsFeatures = $.olMap.getPointsFeatures(pointsData), clusterDistance = options.clusterDistance;
-					var featureLayer = $.olMap.getFeatureLayer(), source = $.olMap.featureSource;
-					source.addFeatures(pointsFeatures);
-					$this.attr('data-cluster', false);
-
-					//是否聚合
-					if(options.cluster){
-						var clusterDistance = clusterDistance ? clusterDistance : 40; //群集之间的像素距离
-						$this.attr('data-cluster', true);
-						$.olMap.clusterSource = new ol.source.Cluster({  
-						 	projection: ol.proj.get("EPSG:4326"),
-					        distance: clusterDistance,
-					        source: source
-					    });
-						featureLayer.setSource($.olMap.clusterSource);
-						featureLayer.setStyle($.olMap.getLayerVectorStyle);
-					}
-				}
-				
 				//标记已渲染
 				$this.attr(rendered, true);
 				$this = null;

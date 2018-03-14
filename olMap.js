@@ -3,6 +3,7 @@ define(function(require, exports, module){
 
 	require('./js/plugins/private/map/jquery.ol.map-cmd');
 
+	var pointId = 1;
 	(function($){
 		function OlMapTest(options){
 			this.options = options;
@@ -10,23 +11,38 @@ define(function(require, exports, module){
 
 		OlMapTest.prototype.init = function(){
 			this.loadMap();
-			this.initEvent();
 		};
 
 		OlMapTest.prototype.loadMap = function(){
 			var scope = this;
 			this.$map = $('#ol_map').olMap({
 				centerPoint: [112.97601699829102, 28.195033121678538],
-				tileUrl: 'http://localhost:8090/Gis/static_map/',
-				pointsUrl: 'point.json',
+				tileUrl: 'http://localhost:8091/Gis/static_map/',
+				pointsUrl: './point.json',
 				pointsSize: 3,
+				method: 'POST',
 				minZoom: 3,
 				maxZoom : 17,
 				defaultZoom: 17,
-				cluster: true
+				cluster: false
+			}).on('map.rightClick', function(e, coordinate){
+				var result = scope.$map.olMap('addPoint', {
+					"id": pointId,
+					"name": "点位" + pointId,
+					"longitude": coordinate[0],
+					"latitude": coordinate[1]
+				});
+
+				pointId++
+
+				var icon = result.success ? 1 : 5;
+				layer.msg(result.msg, {icon: icon, time: 1000});
+			}).on('map.click', function(e, d, a){
+				console.log(d);
 			});
 
-			this.$map.olMap('getMap').on('singleclick', function(e){
+			/*this.$map.olMap('getMap').on('singleclick', function(e){
+				console.log(e);
 				var saveLonAndLat = ol.proj.transform(e.coordinate, 'EPSG:3857', 'EPSG:4326');
 
 				console.log(saveLonAndLat);
@@ -51,22 +67,7 @@ define(function(require, exports, module){
 				console.log(Utils.lonAndLatFromStringToNumber(data.longitude+ ',' +data.latitude));
 
 				scope.$map.olMap('changePointStyle', {id: '40288189497d7be401497d8661f80004', type: 'selected'});
-			});
-		};
-
-		OlMapTest.prototype.initEvent = function(){
-			var scope = this;
-			$('#add_point').on('click', function(e){
-				var result = scope.$map.olMap('addPoint', {
-					"id": "40288189497d7be401497d8661f80005",
-					"name": "五一广场西南角?",
-					"longitude": 112.97281699829102,
-					"latitude": 28.192933121678538
-				});
-
-				var icon = result.success ? 1 : 5;
-				layer.msg(result.msg, {icon: icon});
-			});
+			});*/
 		};
 
 		OlMapTest.load = function(options){

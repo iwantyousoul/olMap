@@ -5,38 +5,36 @@
 	<title>地图</title>
 	<link rel="stylesheet" type="text/css" href="css/normalize.css">
 	<link rel="stylesheet" type="text/css" href="js/core/bootstrap/css/bootstrap.css">
-	
+	<link rel="stylesheet" type="text/css" href="css/olMap.css">
+
 	<script type="text/javascript" src="js/core/jquery/jquery-1.9.1.js"></script>
 	<script type="text/javascript" src="js/core/bootstrap/js/bootstrap.js"></script>
 	<script type="text/javascript" src="js/utils/utils.js"></script>
 	<script type="text/javascript" src="js/core/seajs/sea.js"></script>
 	<script type="text/javascript" src="js/plugins/third_parties/layer-v3.1.1/layer.js"></script>
 
-	
-	<style type="text/css">
-		#ol_map{
-			margin: 50px auto;
+	<style>
+		.map-content{
 			width: 80%;
 			height: 800px;
+			margin: 0 auto;
 		}
-		.btn-group{
-			width:  80%;
-			height: 40px;
-			margin-left: 10%;
-		}
+
 	</style>
 </head>
 <body>
+<div class="map-content">
 	<div id="ol_map"></div>
-	<div class="btn-group">
-		<button class="btn btn-primary" id="add_point">添加点位</button>
+	<div class="map-btn-group">
+		<button class="btn btn-primary" id="change_point_style">框选</button>
 	</div>
-	<script type="text/javascript">
-		seajs.use('./olMap.js', function(olMapTest){
-			olMapTest.load({
-				olMapTest: true
-			});
+</div>
+<script type="text/javascript">
+	seajs.use('./olMap.js', function(olMapTest){
+		olMapTest.load({
+			olMapTest: true
 		});
-	</script>
+	});
+</script>
 </body>
 </html>
