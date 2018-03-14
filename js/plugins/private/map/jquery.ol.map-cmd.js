@@ -471,7 +471,13 @@ define(function(require, exports, module){
 						async : false,
 						success: function(data, textStatus, jqXhr){
 							if(textStatus == 'success'){
-								pointsData = data.datas;
+								var showLength = ajaxData.pointsSize;
+								if(showLength && showLength > 0){
+									pointsData = data.datas.slice(0, showLength);
+								}else{
+									pointsData = data.datas;
+								}
+								
 							}
 						},
 						error: function (jqXhr) {
