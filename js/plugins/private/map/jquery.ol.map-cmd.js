@@ -1,7 +1,7 @@
 /**
  * ol4 地图封装插件
  * 
- *	@author chenpeng 2018-01-25
+ *	@author  2018-01-25
  */
 define(function(require, exports, module){
 	'require:nomunge, exports: nomunge,module:nomunge';
